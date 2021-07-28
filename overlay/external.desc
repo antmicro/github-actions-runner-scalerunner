@@ -1,0 +1,2 @@
+name: GHA_SCALENODE_OVERLAY
+desc: GitHub Actions Custom Runner Worker

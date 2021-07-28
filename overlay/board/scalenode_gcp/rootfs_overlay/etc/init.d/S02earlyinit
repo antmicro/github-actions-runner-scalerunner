@@ -1,0 +1,71 @@
+#!/bin/sh
+
+start() {
+
+    echo "Mounting dev"
+    cd /
+    mount -t devtmpfs dev dev
+    mkdir /dev/pts 2> /dev/null > /dev/null
+    mkdir /dev/shm 2> /dev/null > /dev/null
+    mount -t devpts /dev/pts /dev/pts
+    mount -t tmpfs /dev/shm /dev/shm
+    echo "Mounting dev done"
+
+    mkdir -p /home/scalerunner/.ssh
+    echo > /home/scalerunner/.ssh/authorized_keys
+    chmod 600 /home/scalerunner/.ssh/authorized_keys
+    chown -R scalerunner:scalerunner /home/scalerunner
+
+    tee >> /etc/profile <<EOT
+
+    export PS1='\[\033[01;32m\]\u@\h\[\033[00m\] [\$(ifconfig \$(ifconfig | head -1 | cut -f 1 -d ":" | cut -f 1 -d " ") | grep inet | head -1 | tr -s " " | cut -f 2 -d ":" | cut -f 1 -d " ")] \[\033[01;34m\]\w $\[\033[00m\] '
+
+EOT
+
+    MOTD="/etc/motd"
+
+    KVM_PRESENT=`ls /dev/kvm | wc -l`
+
+    GCP=`dmesg | grep "Google Compute Engine" | grep "BIOS Google" | wc -l`
+
+    echo > $MOTD
+    tee >> $MOTD <<EOT
+                  _                      _      
+                 | |                    | |     
+    ___  ___ __ _| | ___ _ __   ___   __| | ___ 
+   / __|/ __/ _\` | |/ _ \ '_ \ / _ \ / _\` |/ _ \\
+   \__ \ (_| (_| | |  __/ | | | (_) | (_| |  __/
+   |___/\___\__,_|_|\___|_| |_|\___/ \__,_|\___|
+                                      version 0.3
+EOT
+    echo >> $MOTD
+    echo "    `uname -mrs`" >> $MOTD
+    echo "    `cat /proc/cpuinfo | grep ^processor | wc -l` x`cat /proc/cpuinfo | grep 'model name' | cut -f 2 -d ':' | head -1`" >> $MOTD
+    if [ $KVM_PRESENT -eq 1 ] ; then
+       echo "    KVM Virtualization support enabled." >> $MOTD
+    fi
+    if [ $GCP -eq 1 ] ; then
+       echo "    Running in Google Compute Engine." >> $MOTD    
+    fi
+    echo >> $MOTD
+    return 0
+    
+}
+
+stop() {
+    return 0
+}
+
+restart() {
+    return 0
+}
+
+case "$1" in
+ start|stop|restart)
+    "$1";;
+ reload)
+    restart;;
+ *)
+    echo "Usage: $0 {start|stop|restart|reload}"
+    exit 1
+esac

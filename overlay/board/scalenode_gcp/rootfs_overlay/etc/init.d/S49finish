@@ -1,0 +1,84 @@
+#!/bin/sh
+
+start() {
+    mkdir /etc/sudoers.d
+    echo "scalerunner ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/scalerunner
+    
+    # wait a bit until dhcp gets ip
+    TIMEOUT=0
+    while [ "1" = "1" ] ; do
+        END=`route -n | grep ^0.0.0.0 | tail -1 | wc -l`
+        if [ "$END" = "1" ] ; then
+           break
+        else
+           TIMEOUT=`expr $TIMEOUT + 1`
+        fi
+        if [ "$TIMEOUT" = "5" ] ; then
+           break
+        fi
+        sleep 1
+    done
+
+    GCP=`dmesg | grep "Google Compute Engine" | grep "BIOS Google" | wc -l`
+
+    echo "Detecting if we're running in GCP..."
+
+    if [ "$GCP" = "0" ] ; then
+        # two times in case first times out because dhcp is still working
+        curl --max-time 2 --silent --output /dev/null 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' && GCP=1
+        sleep 1
+        curl --max-time 2 --silent --output /dev/null 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' && GCP=1
+    fi
+
+    if [ "$GCP" = "1" ] ; then
+        while :
+        do
+            if [ ! -e '/dev/sda2' ] ; then
+                ( echo 'n' ; echo 'p' ; echo '2' ; echo '410000'; echo ; echo 'w'; echo 'q' ) | fdisk /dev/sda
+                sync
+                partprobe
+                sync
+                yes | mke2fs /dev/sda2
+                sync
+                mount /dev/sda2 /mnt
+                sync
+            fi
+            hostname=`curl --silent 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' | cut -f 1 -d '.'`
+            if [ "$hostname" != "" ] ; then
+                break
+            fi
+        done
+        if [ "$hostname" = "" ] ; then
+            echo "GCP detected, but reading hostname failed"
+            GCP=0
+        fi
+    fi
+    
+    if [ "$GCP" = "1" ] ; then
+        echo "GCP detected"
+        
+        hostname=`curl --silent 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' | cut -f 1 -d '.'`
+        echo "Setting hostname to ${hostname}"
+        hostname $hostname
+    fi
+    
+    return 0
+}
+
+stop() {
+    return 0
+}
+
+restart() {
+    return 0
+}
+
+case "$1" in
+  start|stop|restart)
+         "$1";;
+  reload)
+         restart;;
+  *)
+         echo "Usage: $0 {start|stop|restart|reload}"
+	 exit 1
+esac
