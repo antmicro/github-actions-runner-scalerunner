@@ -2,3 +2,6 @@
 	path = buildroot
 	url = https://github.com/antmicro/buildroot.git
 	branch = 2021.02.2-antmicro-main
+[submodule "grub-legacy"]
+	path = grub-legacy
+	url = https://github.com/antmicro/grub-legacy.git
