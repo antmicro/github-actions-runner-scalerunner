@@ -1,0 +1,7 @@
+default 0
+timeout 1
+
+title Buildroot
+root (hd0,0)
+kernel /bzImage root=/dev/ram console=ttyS0
+
