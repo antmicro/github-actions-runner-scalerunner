@@ -37,7 +37,7 @@ prepare_bootdisk() {
     truncate -s 199M $fat_part
     mkfs.fat $fat_part
 
-    cp $base_dir/buildroot/output/build/linux-*/arch/x86/boot/bzImage $out_dir
+    cp $base_dir/buildroot/output/images/bzImage $out_dir
 
     pecho "copying grub and kernel to fat16 partition"
     mmd -i $fat_part ::boot
