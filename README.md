@@ -2,7 +2,7 @@
 
 Copyright (c) 2020-2021 [Antmicro](https://www.antmicro.com)
 
-This repository contains the scripts and configuration files for building an image used by [Antmicro's GitHub Actions runner](https://github.com/antmicro/runner).
+This project contains the scripts and configuration files for building an image used by [Antmicro's GitHub Actions runner](https://github.com/antmicro/runner).
 
 ## Usage
 
