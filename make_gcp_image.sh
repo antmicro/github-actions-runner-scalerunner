@@ -34,26 +34,30 @@ make_grub() {
     cd $base_dir
 }
 
-prepare_fat() {
+prepare_bootdisk() {
     pecho "$(fdisk --version)"
 
+    pecho "creating raw disk with bootable fat16 partition"
     ( echo "n" ; echo p ; echo 1 ; echo "2048"; echo 409599; echo w; echo q ) | fdisk $out_dir/disk.raw
     ( echo t; echo 6; echo ; echo w; echo q ) | fdisk $out_dir/disk.raw
     ( echo a; echo w; echo q ) | fdisk $out_dir/disk.raw
 
+    pecho "preparing fat16 partition"
     truncate -s 199M $out_dir/disk.fat
     mkfs.fat $out_dir/disk.fat
 
     cp $base_dir/buildroot/output/build/linux-*/arch/x86/boot/bzImage $out_dir
 
+    pecho "copying grub and kernel to fat16 partition"
     mmd -i $out_dir/disk.fat ::boot
     mmd -i $out_dir/disk.fat ::boot/grub
     mcopy -i $out_dir/disk.fat $base_dir/menu.lst '::boot/grub/menu.lst'
     mcopy -i $out_dir/disk.fat $out_dir/bzImage '::.'
 
+    pecho "copying fat16 to raw disk" 
     dd conv=notrunc if=$out_dir/disk.fat of=$out_dir/disk.raw bs=512 seek=2048
 }
 
 mkdir -p $out_dir
 make_grub
-prepare_fat
+prepare_bootdisk
