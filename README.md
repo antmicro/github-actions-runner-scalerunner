@@ -1,4 +1,4 @@
-# Scalenode worker image for GitHub Actions custom runner
+# Worker image for GitHub Actions custom runner
 
 Copyright (c) 2020-2021 [Antmicro](https://www.antmicro.com)
 
