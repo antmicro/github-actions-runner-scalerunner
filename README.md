@@ -14,3 +14,10 @@ This will prepare a disk with [grub-legacy](https://github.com/antmicro/grub-leg
 Next run `./upload_gcp_image $GCP_PROJECT $GCP_BUCKET`.
 The tar archive created in the previous step will be uploaded to a Google Cloud Storage bucket and a ready-to-use image will be created.
 This step is described more in-depth in the [Google Cloud documentation page on importing images](https://cloud.google.com/compute/docs/import/import-existing-image#import_image).
+
+## Testing
+
+It is possible to test the image locally by running it in QEMU using the following command:
+```
+qemu-system-x86_64 -drive format=raw,file=output/disk.raw -cpu host --enable-kvm -m 1G
+```
