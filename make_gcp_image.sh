@@ -54,7 +54,7 @@ prepare_bootdisk() {
 make_tar() {
     tar_arch=$(tar_path)
     pecho "$(basename $tar_arch)"
-    tar -Sczf $tar_arch $raw_disk
+    tar -Sczf $tar_arch -C `dirname $raw_disk` disk.raw
 }
 
 mkdir -p $out_dir
