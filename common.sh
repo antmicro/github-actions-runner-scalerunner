@@ -8,6 +8,7 @@ grub_path_build=$grub_path/build
 grub_s1=$grub_path_build/stage1/stage1
 grub_s2=$grub_path_build/stage2/stage2
 
+bzimage=$base_dir/buildroot/output/images/bzImage
 fat_part=$out_dir/disk.fat
 raw_disk=$out_dir/disk.raw
 

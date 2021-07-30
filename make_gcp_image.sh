@@ -4,6 +4,16 @@ source common.sh
 
 export PATH="$PATH:/usr/sbin"
 
+check_image() {
+    if [ ! -f $bzimage ]; then
+        pecho "Build the image first by running:"
+        pecho ""
+        pecho "  cd buildroot && make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig && make"
+        pecho ""
+        exit 1
+    fi
+}
+
 make_grub() {
     pecho "configuring and compiling grub legacy..."
 
@@ -37,7 +47,7 @@ prepare_bootdisk() {
     truncate -s 199M $fat_part
     mkfs.fat $fat_part
 
-    cp $base_dir/buildroot/output/images/bzImage $out_dir
+    cp $bzimage $out_dir
 
     pecho "copying grub and kernel to fat16 partition"
     mmd -i $fat_part ::boot
@@ -57,6 +67,7 @@ make_tar() {
     tar -Sczf $tar_arch -C `dirname $raw_disk` disk.raw
 }
 
+check_image
 mkdir -p $out_dir
 make_grub
 prepare_bootdisk
