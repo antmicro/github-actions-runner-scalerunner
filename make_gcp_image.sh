@@ -1,23 +1,8 @@
 #!/bin/bash
 
-base_dir=`pwd`
-out_dir=$base_dir/output
-stamp=`date +%Y-%m-%d--%H-%M-%S`
-
-grub_path=`realpath grub-legacy`
-grub_path_build=$grub_path/build
-grub_s1=$grub_path_build/stage1/stage1
-grub_s2=$grub_path_build/stage2/stage2
-
-fat_part=$out_dir/disk.fat
-raw_disk=$out_dir/disk.raw
-tar_arch=$out_dir/scalenode-$stamp.tar.gz
+source common.sh
 
 export PATH="$PATH:/usr/sbin"
-
-pecho() {
-    printf '\x1b[1;32m>> \x1b[1;33m%s \x1b[0m%s\n' "${FUNCNAME[1]}" "$1"
-}
 
 make_grub() {
     pecho "configuring and compiling grub legacy..."
@@ -67,6 +52,7 @@ prepare_bootdisk() {
 }
 
 make_tar() {
+    tar_arch=$(tar_path)
     pecho "$(basename $tar_arch)"
     tar -Sczf $tar_arch $raw_disk
 }
