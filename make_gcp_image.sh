@@ -2,6 +2,7 @@
 
 base_dir=`pwd`
 out_dir=$base_dir/output
+stamp=`date +%Y-%m-%d--%H-%M-%S`
 
 grub_path=`realpath grub-legacy`
 grub_path_build=$grub_path/build
@@ -10,6 +11,7 @@ grub_s2=$grub_path_build/stage2/stage2
 
 fat_part=$out_dir/disk.fat
 raw_disk=$out_dir/disk.raw
+tar_arch=$out_dir/scalenode-$stamp.tar.gz
 
 export PATH="$PATH:/usr/sbin"
 
@@ -60,8 +62,16 @@ prepare_bootdisk() {
 
     pecho "copying fat16 to raw disk" 
     dd conv=notrunc if=$fat_part of=$raw_disk bs=512 seek=2048
+
+    cd $base_dir
+}
+
+make_tar() {
+    pecho "$(basename $tar_arch)"
+    tar -Sczf $tar_arch $raw_disk
 }
 
 mkdir -p $out_dir
 make_grub
 prepare_bootdisk
+make_tar
