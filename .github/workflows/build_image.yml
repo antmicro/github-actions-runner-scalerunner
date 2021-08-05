@@ -1,0 +1,30 @@
+name: Build worker image
+on: push
+
+jobs:
+  build_image:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Install utils
+        run: |
+          sudo apt-get -qqy update
+          sudo apt-get -qqy install gcc-multilib mtools automake autoconf
+
+      - name: Make Buildroot image
+        run: |
+          cd buildroot && make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig && make
+
+      - name: Make GCP image
+        run: |
+          ./make_gcp_image.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: worker-image
+          path: output/*.tar.gz
