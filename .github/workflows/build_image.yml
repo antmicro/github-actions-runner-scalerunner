@@ -16,6 +16,10 @@ jobs:
           apt-get -qqy update
           apt-get -qqy install gcc-multilib mtools automake autoconf build-essential
 
+      - name: Print environment
+        run: |
+          printenv
+
       - name: Make Buildroot image
         run: |
           cd buildroot && make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig && make
