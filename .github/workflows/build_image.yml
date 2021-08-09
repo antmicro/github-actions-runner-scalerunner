@@ -3,7 +3,8 @@ on: push
 
 jobs:
   build_image:
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, Linux, X64]
+    container: debian:bullseye
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -12,8 +13,8 @@ jobs:
 
       - name: Install utils
         run: |
-          sudo apt-get -qqy update
-          sudo apt-get -qqy install gcc-multilib mtools automake autoconf
+          apt-get -qqy update
+          apt-get -qqy install gcc-multilib mtools automake autoconf build-essential
 
       - name: Make Buildroot image
         run: |
