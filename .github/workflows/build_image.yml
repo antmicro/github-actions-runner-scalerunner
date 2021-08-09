@@ -21,6 +21,8 @@ jobs:
           printenv
 
       - name: Make Buildroot image
+        env:
+          PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
         run: |
           cd buildroot && make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig && make
 
