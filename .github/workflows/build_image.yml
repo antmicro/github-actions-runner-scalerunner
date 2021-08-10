@@ -16,7 +16,8 @@ jobs:
           apt-get -qqy update
           apt-get -qqy install file gcc-multilib mtools \
             automake autoconf build-essential bison flex \
-            wget patch bc unzip make rsync binutils cpio git libelf-dev
+            wget patch bc unzip make rsync binutils cpio git libelf-dev \
+            python3
 
       - name: Print environment
         run: |
@@ -27,9 +28,9 @@ jobs:
         run: |
           unset PATH
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          cd buildroot && \
-            make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig && \
-            FORCE_UNSAFE_CONFIGURE=1 make -j$(nproc) 2>&1 | tail -10000
+          cd buildroot
+          make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig
+          FORCE_UNSAFE_CONFIGURE=1 make -j$(nproc) 2>&1 | tail -10000
 
       - name: Make GCP image
         run: |
