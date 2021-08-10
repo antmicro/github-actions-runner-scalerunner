@@ -14,7 +14,9 @@ jobs:
       - name: Install utils
         run: |
           apt-get -qqy update
-          apt-get -qqy install gcc-multilib mtools automake autoconf build-essential
+          apt-get -qqy install file gcc-multilib mtools \
+            automake autoconf build-essential bison flex \
+            wget patch bc unzip make rsync binutils
 
       - name: Print environment
         run: |
