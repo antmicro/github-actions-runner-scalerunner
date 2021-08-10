@@ -16,7 +16,7 @@ jobs:
           apt-get -qqy update
           apt-get -qqy install file gcc-multilib mtools \
             automake autoconf build-essential bison flex \
-            wget patch bc unzip make rsync binutils
+            wget patch bc unzip make rsync binutils cpio git
 
       - name: Print environment
         run: |
