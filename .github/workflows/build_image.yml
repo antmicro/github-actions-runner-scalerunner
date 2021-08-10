@@ -17,7 +17,7 @@ jobs:
           apt-get -qqy install file gcc-multilib mtools \
             automake autoconf build-essential bison flex \
             wget patch bc unzip make rsync binutils cpio git libelf-dev \
-            python3
+            python3 golang
 
       - name: Print environment
         run: |
