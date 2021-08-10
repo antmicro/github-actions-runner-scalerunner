@@ -18,6 +18,7 @@ jobs:
 
       - name: Print environment
         run: |
+          echo ":${PATH:-unset}:"
           printenv
 
       - name: Make Buildroot image
