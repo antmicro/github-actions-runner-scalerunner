@@ -6,10 +6,8 @@ export PATH="$PATH:/usr/sbin"
 
 check_image() {
     if [ ! -f $bzimage ]; then
-        pecho "Build the image first by running:"
-        pecho ""
-        pecho "  cd buildroot && make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig && make"
-        pecho ""
+        pecho "bzImage not found at $bzimage"
+        pecho "Build the image first."
         exit 1
     fi
 }
@@ -19,7 +17,7 @@ make_grub() {
 
     mkdir -p $grub_path_build
     cd $grub_path && ./autogen.sh
-    cd $grub_path_build CFLAGS+=" -static -fno-strict-aliasing -fno-stack-protector" ../configure
+    cd $grub_path_build && CFLAGS+=" -static -fno-strict-aliasing -fno-stack-protector" ../configure
     cd $grub_path_build && make
 
     pecho "copying stage binaries"
