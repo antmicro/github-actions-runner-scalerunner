@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 source common.sh
 
 export PATH="$PATH:/usr/sbin"
