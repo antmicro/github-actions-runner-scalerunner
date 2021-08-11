@@ -19,18 +19,13 @@ jobs:
             wget patch bc unzip make rsync binutils cpio git libelf-dev \
             python3 golang
 
-      - name: Print environment
-        run: |
-          echo ":${PATH:-unset}:"
-          printenv
-
       - name: Make Buildroot image
         run: |
           unset PATH
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           cd buildroot
           make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig
-          FORCE_UNSAFE_CONFIGURE=1 make -j$(nproc) 2>&1 | tail -10000
+          FORCE_UNSAFE_CONFIGURE=1 make -j$(nproc) 2>&1
 
       - name: Make GCP image
         run: |
