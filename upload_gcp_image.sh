@@ -1,11 +1,18 @@
 #!/bin/bash
 
+set -e
+
 source common.sh
 
 project=$1
 bucket=gs://$2
-tar_arch=$(tar_path)
+tar_arch="${3:-`tar_path`}"
 image_name=$(basename $tar_arch .tar.gz)
+
+usage() {
+    pecho "`basename $0` PROJECT BUCKET [TAR_PATH]"
+    exit 1
+}
 
 upload_archive() {
     pecho "uploading to $bucket"
@@ -19,5 +26,10 @@ create_image() {
         --project $project
 }
 
+if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$#" -ne 2 ]; then
+    usage
+fi
+
+pecho "tar to upload: $tar_arch"
 upload_archive
 create_image
