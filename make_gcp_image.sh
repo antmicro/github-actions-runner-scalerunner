@@ -19,7 +19,7 @@ make_grub() {
 
     mkdir -p $grub_path_build
     cd $grub_path && ./autogen.sh
-    cd $grub_path_build && CFLAGS+=" -static -fno-strict-aliasing -fno-stack-protector" ../configure
+    cd $grub_path_build && CFLAGS+=" -static -fno-strict-aliasing -fno-stack-protector" ../configure --host x86_64
     cd $grub_path_build && make
 
     pecho "copying stage binaries"
