@@ -26,7 +26,7 @@ create_image() {
         --project $project
 }
 
-if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$#" -ne 2 ]; then
+if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$#" -lt 2 ]; then
     usage
 fi
 
