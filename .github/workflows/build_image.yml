@@ -17,7 +17,7 @@ jobs:
           apt-get -qqy install file gcc-multilib mtools \
             automake autoconf build-essential bison flex \
             wget patch bc unzip make rsync binutils cpio git libelf-dev \
-            python3 golang fdisk dosfstools 
+            python3 golang fdisk dosfstools texinfo 
 
       - name: Make Buildroot image
         run: |
