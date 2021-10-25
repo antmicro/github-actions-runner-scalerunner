@@ -14,6 +14,14 @@ check_image() {
     fi
 }
 
+partition_size() {
+    image_size=`stat --format="%s" $bzimage`
+    padding=`echo 10 | numfmt --from-unit=Mi`
+    part_size=`expr $image_size + $padding`
+
+    echo $part_size
+}
+
 make_grub() {
     pecho "configuring and compiling grub legacy..."
 
@@ -30,21 +38,26 @@ make_grub() {
     pecho "clearing partition table (leaving MBR intact)"
     dd if=/dev/zero of=$raw_disk bs=1 count=64 seek=446 conv=notrunc
 
-    truncate -s 200M $raw_disk
-
     cd $base_dir
 }
 
 prepare_bootdisk() {
+    part_size=$(partition_size)
+    disk_size_before=`stat --format="%s" $raw_disk`
+    disk_size_after=`expr $disk_size_before + $part_size`
+
+    pecho "fat part;disk size: $part_size;$disk_size_after"
+    truncate -s $disk_size_after $raw_disk
+
     pecho "$(fdisk --version)"
 
     pecho "creating raw disk with bootable fat16 partition"
-    ( echo "n" ; echo p ; echo 1 ; echo "2048"; echo 409599; echo w; echo q ) | fdisk $raw_disk
+    ( echo "n" ; echo p ; echo 1 ; echo; echo; echo w; echo q ) | fdisk $raw_disk
     ( echo t; echo 6; echo ; echo w; echo q ) | fdisk $raw_disk
     ( echo a; echo w; echo q ) | fdisk $raw_disk
 
     pecho "preparing fat16 partition"
-    truncate -s 199M $fat_part
+    truncate -s $part_size $fat_part
     mkfs.fat $fat_part
 
     cp $bzimage $out_dir
