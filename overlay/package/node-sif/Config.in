@@ -1,0 +1,4 @@
+config BR2_PACKAGE_NODE_SIF
+	bool "node-sif"
+	help
+	  Node 16 packaged as a SIF image.
