@@ -33,7 +33,7 @@ make_grub() {
     pecho "copying stage binaries"
 
     dd if=$grub_s1 of=$raw_disk bs=512 count=1
-    dd if=$grub_s2 of=$raw_disk bs=512 seek=1
+    dd if=$grub_s2 of=$raw_disk bs=512 seek=1 conv=notrunc
 
     pecho "clearing partition table (leaving MBR intact)"
     dd if=/dev/zero of=$raw_disk bs=1 count=64 seek=446 conv=notrunc
