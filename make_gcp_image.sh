@@ -46,7 +46,8 @@ prepare_bootdisk() {
     disk_size_before=`stat --format="%s" $raw_disk`
     disk_size_after=`expr $disk_size_before + $part_size`
 
-    pecho "fat part;disk size: $part_size;$disk_size_after"
+    pecho "fat;old;new: $part_size;$disk_size_before;$disk_size_after"
+
     truncate -s $disk_size_after $raw_disk
 
     pecho "$(fdisk --version)"
