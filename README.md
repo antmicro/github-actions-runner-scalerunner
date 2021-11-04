@@ -19,5 +19,5 @@ This step is described more in-depth in the [Google Cloud documentation page on 
 
 It is possible to test the image locally by running it in QEMU using the following command:
 ```
-qemu-system-x86_64 -drive format=raw,file=output/disk.raw -cpu host --enable-kvm -m 1G
+qemu-system-x86_64 -nographic -drive format=raw,file=output/disk.raw -cpu host --enable-kvm -m 1G
 ```
