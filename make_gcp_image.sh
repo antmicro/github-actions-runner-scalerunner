@@ -18,6 +18,8 @@ partition_size() {
     image_size=`stat --format="%s" $bzimage`
     padding=`echo 10 | numfmt --from-unit=Mi`
     part_size=`expr $image_size + $padding`
+    # make sure part_size is in 512 blocks, as gcp requires it
+    part_size=$((((part_size / 512) + 1) * 512))
 
     echo $part_size
 }
