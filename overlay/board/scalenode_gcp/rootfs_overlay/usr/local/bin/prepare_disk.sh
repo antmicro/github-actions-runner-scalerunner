@@ -12,7 +12,8 @@ if [ "$(whoami)" != 'root' ]; then
 	exit 2
 fi
 
-target_free_space=$(sfdisk -F $target_disk | awk 'NR==1{ print $4 }')
+# Round up the result, we only care if it is non-zero.
+target_free_space=$(sfdisk -F $target_disk | awk 'NR==1{ printf("%d\n",$4 + 0.5) }')
 
 echo "$target_partition;$target_free_space"
 
@@ -28,6 +29,8 @@ do
 		exit 1
 	fi
 
+    # This will create a second partition on the disk (first is used as a boot partition for GRUB).
+    # The sleep between write is necessary to avoid errors due to timing.
 	(echo n; echo p; echo 2; echo; echo; sleep 1; echo w; echo q;) | fdisk \
 		--wipe always \
 		--wipe-partition always \
@@ -45,5 +48,6 @@ do
 	fi
 done
 
+# Print debug information.
 df -h $target_partition
 fdisk -l $target_disk
