@@ -30,30 +30,8 @@ start() {
         curl --max-time 2 --silent --output /dev/null 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' && GCP=1
     fi
 
-    if [ "$GCP" = "1" ] ; then
-        while :
-        do
-            if [ ! -e '/dev/sda2' ] ; then
-                ( echo 'n' ; echo 'p' ; echo '2' ; echo '410000'; echo ; echo 'w'; echo 'q' ) | fdisk /dev/sda
-                sync
-                partprobe
-                sync
-                yes | mke2fs /dev/sda2
-                sync
-                mount /dev/sda2 /mnt
-                sync
-            fi
-            hostname=`curl --silent 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' | cut -f 1 -d '.'`
-            if [ "$hostname" != "" ] ; then
-                break
-            fi
-        done
-        if [ "$hostname" = "" ] ; then
-            echo "GCP detected, but reading hostname failed"
-            GCP=0
-        fi
-    fi
-    
+    /usr/local/bin/prepare_disk.sh
+
     if [ "$GCP" = "1" ] ; then
         echo "GCP detected"
         
