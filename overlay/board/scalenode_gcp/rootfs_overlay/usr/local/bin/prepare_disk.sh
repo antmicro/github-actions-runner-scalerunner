@@ -3,15 +3,23 @@
 target_disk=/dev/sda
 target_partition=${target_disk}2
 target_mount=/mnt
+
 timeout_ctr=0
 timeout_max=10
 
-if [ `whoami` != 'root' ]; then
+if [ "$(whoami)" != 'root' ]; then
 	echo 'root required'
 	exit 2
 fi
 
-echo "$target_partition"
+target_free_space=$(sfdisk -F $target_disk | awk 'NR==1{ print $4 }')
+
+echo "$target_partition;$target_free_space"
+
+if [ "$target_free_space" -eq 0 ]; then
+    echo "no free unpartitioned space"
+    exit 1
+fi
 
 while [ ! -b "$target_partition" ]
 do
@@ -31,7 +39,7 @@ do
 	mount $target_partition $target_mount
 
 	if [ ! -b $target_partition ]; then
-		let timeout_ctr++
+        timeout_ctr=$((timeout_ctr+=1))
 		echo "waiting for $target_partition $timeout_ctr/$timeout_max"
 		sleep 1
 	fi
