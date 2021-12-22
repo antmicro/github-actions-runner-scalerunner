@@ -17,11 +17,11 @@ pecho "removing $known_host_str"
 ssh-keygen -f "$HOME/.ssh/known_hosts" -R $known_host_str
 
 qemu-system-x86_64 \
-    -drive if=none,id=drive0,format=raw,file=$test_disk \
+    -drive if=none,id=scalerunner-boot-disk,format=raw,file=$test_disk \
     -cpu host \
     --enable-kvm \
     -m 2G \
     -nographic \
     -nic user,model=virtio-net-pci,hostfwd=tcp::9022-:22 \
     -device virtio-scsi-pci,id=scsi0 \
-    -device scsi-hd,drive=drive0
+    -device scsi-hd,drive=scalerunner-boot-disk,vendor=Google,product=PersistentDisk
