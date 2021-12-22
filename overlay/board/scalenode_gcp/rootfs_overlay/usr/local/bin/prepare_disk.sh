@@ -34,7 +34,7 @@ do
 	(echo n; echo p; echo 2; echo; echo; sleep 1; echo w; echo q;) | fdisk \
 		--wipe always \
 		--wipe-partition always \
-		/dev/sda
+		$target_disk    
 	sync
 	partprobe
 	mke2fs $target_partition
