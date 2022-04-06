@@ -1,70 +1,108 @@
 #!/bin/sh
 
-target_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_scalerunner-boot-disk
-target_partition=${target_disk}-part2
-target_mount=/mnt
+coordinator_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0
+# part1 is used as a boot partition
+coordinator_boot_disk_target_partition=${coordinator_boot_disk}-part2
+coordinator_boot_disk_mnt=/mnt/boot-persistent
+coordinator_sif_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk
+coordinator_sif_disk_target_partition=${coordinator_sif_disk}-part1
+coordinator_sif_disk_mnt=/mnt/sif
+coordinator_persistent_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnerpersistentdisk
+coordinator_persistent_disk_target_partition=${coordinator_persistent_disk}-part1
+coordinator_persistent_disk_mnt=/mnt/persistent
+
+worker_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_scalerunner-boot-disk
+# part1 is used as a boot partition
+worker_boot_disk_target_partition=${worker_target_disk}-part2
+worker_boot_disk_mnt=/mnt
 
 timeout_ctr=0
 timeout_max=10
 
-if [ "$(whoami)" != 'root' ]; then
-	echo 'root required'
-	exit 2
-fi
-
-# Legacy fallback.
-if [ ! -b "$target_disk" ]; then
-	echo "$target_disk not found, will use fallback"
-	target_disk=/dev/sda
-	target_partition=2
-fi
-
-# Round up the result, we only care if it is non-zero.
-target_free_space=$(sfdisk -F $target_disk | awk 'NR==1{ printf("%d\n",$4 + 0.5) }')
-
-echo "$target_partition;$target_free_space"
-
-
-# Create the partition and format it if it is not present.
-if [ ! -b "$target_partition" ]; then
-    echo "target partition not found, formatting disk"
-
-    # Bail if no partition is found and there's no free space on the disk.
-    if [ "$target_free_space" -eq 0 ]; then
-        echo "no free unpartitioned space"
-        exit 1
+check_root() {
+    if [ "$(whoami)" != 'root' ]; then
+	    echo 'root required'
+	    exit 2
     fi
+}
 
-    # This will create a second partition on the disk (first is used as a boot partition for GRUB).
-    # The sleep between write is necessary to avoid errors due to timing.
-	(echo n; echo p; echo 2; echo; echo; sleep 1; echo w; echo q;) | fdisk \
-		--wipe always \
-		--wipe-partition always \
-		$target_disk
+prepare_mount() {
+    # Round up the result, we only care if it is non-zero.
+    target_free_space=$(sfdisk -F $1 | awk 'NR==1{ printf("%d\n",$4 + 0.5) }')
 
-    # Wait for the partition to appear.
-    while [ ! -b "$target_partition" ]
-    do
+    echo "$2;$target_free_space"
+    # Create the partition and format it if it is not present.
+    if [ ! -b "$2" ]; then
+	echo "target partition not found, formatting disk"
+
+	# Bail if no partition is found and there's no free space on the disk.
+	if [ "$target_free_space" -eq 0 ]; then
+	    echo "no free unpartitioned space"
+	    exit 1
+	fi
+
+	# This will create a partition on the disk
+	# The sleep between write is necessary to avoid errors due to timing.
+	    (echo n; echo p; echo ; echo; echo; sleep 1; echo w; echo q;) | fdisk \
+		    --wipe always \
+		    --wipe-partition always \
+		    $1
+
+	# Wait for the partition to appear.
+	while [ ! -b "$2" ]
+	do
+		sync
+		partprobe
+
+	    if [ "$timeout_ctr" -eq "$timeout_max" ]; then
+		echo "timeout waiting for $2"
+		exit 1
+	    fi
+
+	    timeout_ctr=$((timeout_ctr+=1))
+	    echo "waiting for $2 $timeout_ctr/$timeout_max"
+	    sleep 1
+	done
+
+	    mke2fs $2
 	    sync
-	    partprobe
+    fi
+}
 
-        if [ "$timeout_ctr" -eq "$timeout_max" ]; then
-            echo "timeout waiting for $target_partition"
-            exit 1
-        fi
+do_mount() {
+    echo "mounting $1 -> $2"
+    mkdir -p $2
+    mount $1 $2
+}
 
-        timeout_ctr=$((timeout_ctr+=1))
-        echo "waiting for $target_partition $timeout_ctr/$timeout_max"
-        sleep 1
-    done
+debug() {
+    # Print debug information.
+    df -h $1
+    fdisk -l $2
+}
 
-	mke2fs $target_partition
-	sync
+check_root
+
+if [ -h ${coordinator_boot_disk} ]; then
+    # we are in coordinator machine
+    prepare_mount ${coordinator_boot_disk} ${coordinator_boot_disk_target_partition}
+    do_mount ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk_mnt}
+    debug ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk}
+
+    prepare_mount ${coordinator_sif_disk} ${coordinator_sif_disk_target_partition}
+    do_mount ${coordinator_sif_disk_target_partition} ${coordinator_sif_disk_mnt}
+    debug ${coordinator_sif_disk_target_partition} ${coordinator_sif_disk}
+
+    prepare_mount ${coordinator_persistent_disk} ${coordinator_persistent_disk_target_partition}
+    do_mount ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk_mnt}
+    debug ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk}
+elif [ -h ${worker_boot_disk} ]; then
+    prepare_mount ${worker_boot_disk} ${worker_boot_disk_target_partition}
+    do_mount ${worker_boot_disk_target_partition} ${worker_boot_disk_mnt}
+    debug ${worker_boot_disk_target_partition} ${worker_target_disk}
+else
+    echo "Couldn't find any disk, skipping prepare_disk"
 fi
 
-echo "mounting $target_partition -> $target_mount"
-mount $target_partition $target_mount
 
-# Print debug information.
-df -h $target_partition
-fdisk -l $target_disk
+
