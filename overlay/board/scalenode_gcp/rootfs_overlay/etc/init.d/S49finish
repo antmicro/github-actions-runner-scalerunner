@@ -23,6 +23,18 @@ monitor_keys() {
     done
 }
 
+monitor_singularity() {
+    SINGULARITY_INSTANCE_NAME="runner"
+    SINGULARITY_CMD="singularity instance start -C -e --overlay /mnt/persistent/ /mnt/sif/image.sif ${SINGULARITY_INSTANCE_NAME}"
+    while [ true ] ; do
+       APP_RUNNING=`singularity instance list  | grep ${SINGULARITY_INSTANCE_NAME} | wc -l`
+       if [ $APP_RUNNING = "0" ] ; then
+	   ${SINGULARITY_CMD}
+       fi
+       sleep 10
+    done
+}
+
 
 start() {
     mkdir -p /etc/sudoers.d
@@ -56,6 +68,7 @@ start() {
         echo "Setting hostname to ${hostname}"
         hostname $hostname
         monitor_keys "instance" &
+        monitor_singularity &
     fi
     
     return 0
