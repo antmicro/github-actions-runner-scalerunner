@@ -1,1 +1,2 @@
 source "$BR2_EXTERNAL_GHA_SCALENODE_OVERLAY_PATH/package/node-sif/Config.in"
+source "$BR2_EXTERNAL_GHA_SCALENODE_OVERLAY_PATH/package/utility-sif/Config.in"

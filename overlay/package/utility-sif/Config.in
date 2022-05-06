@@ -1,0 +1,4 @@
+config BR2_PACKAGE_UTILITY_SIF
+	bool "utility-sif"
+	help
+	  GHA Runners Utility container
