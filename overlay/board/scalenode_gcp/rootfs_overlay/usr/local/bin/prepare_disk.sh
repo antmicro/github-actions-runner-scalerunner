@@ -13,7 +13,7 @@ coordinator_persistent_disk_mnt=/mnt/persistent
 
 worker_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_scalerunner-boot-disk
 # part1 is used as a boot partition
-worker_boot_disk_target_partition=${worker_target_disk}-part2
+worker_boot_disk_target_partition=${worker_boot_disk}-part2
 worker_boot_disk_mnt=/mnt
 
 timeout_ctr=0
@@ -84,6 +84,7 @@ debug() {
 check_root
 
 if [ -b ${coordinator_boot_disk} ]; then
+    echo "Detected coordinator machine!"
     # we are in coordinator machine
     prepare_mount ${coordinator_boot_disk} ${coordinator_boot_disk_target_partition}
     do_mount ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk_mnt}
@@ -97,6 +98,7 @@ if [ -b ${coordinator_boot_disk} ]; then
     do_mount ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk_mnt}
     debug ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk}
 elif [ -b ${worker_boot_disk} ]; then
+    echo "Detected worker machine!"
     prepare_mount ${worker_boot_disk} ${worker_boot_disk_target_partition}
     do_mount ${worker_boot_disk_target_partition} ${worker_boot_disk_mnt}
     debug ${worker_boot_disk_target_partition} ${worker_target_disk}
