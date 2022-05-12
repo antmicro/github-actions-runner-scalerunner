@@ -68,7 +68,9 @@ start() {
         echo "Setting hostname to ${hostname}"
         hostname $hostname
         monitor_keys "instance" &
-        monitor_singularity &
+        if [ -f /mnt/sif/image.sif ]; then
+            monitor_singularity &
+        fi
     fi
     
     return 0
