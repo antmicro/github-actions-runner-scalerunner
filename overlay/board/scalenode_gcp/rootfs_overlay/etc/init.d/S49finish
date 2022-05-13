@@ -24,8 +24,9 @@ monitor_keys() {
 }
 
 monitor_singularity() {
+    SCALE=$(curl --silent "http://169.254.169.254/computeMetadata/v1/instance/attributes/SCALE" -H "Metadata-Flavor: Google")
     SINGULARITY_INSTANCE_NAME="runner"
-    SINGULARITY_CMD="singularity instance start -C -e --overlay /mnt/persistent/ /mnt/sif/image.sif ${SINGULARITY_INSTANCE_NAME}"
+    SINGULARITY_CMD="singularity instance start -C -e --overlay /mnt/persistent/ /mnt/sif/image.sif ${SINGULARITY_INSTANCE_NAME} $SCALE"
     while [ true ] ; do
        APP_RUNNING=`singularity instance list  | grep ${SINGULARITY_INSTANCE_NAME} | wc -l`
        if [ $APP_RUNNING = "0" ] ; then
