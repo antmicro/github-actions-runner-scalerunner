@@ -2,11 +2,11 @@
 
 monitor_keys() {
     echo "Monitoring ssh keys for $1"
-    wait="0"
+    wait=0
     while [ true ] ; do
         TMP=`mktemp`
         touch /home/scalerunner/.ssh/authorized_keys_$1
-        if [ "$wait" = "1" ]; then
+        if [ $wait -eq 1 ]; then
             wait_str="?wait_for_change=true"
         fi
         curl --silent "http://169.254.169.254/computeMetadata/v1/$1/attributes/ssh-keys${wait_str}" -H 'Metadata-Flavor: Google' > $TMP
@@ -18,7 +18,7 @@ monitor_keys() {
         chown -R scalerunner:scalerunner /home/scalerunner/.ssh
 
         echo "New keys insterted"
-        wait="1"
+        wait=1
         sleep 1
     done
 }
@@ -39,10 +39,10 @@ monitor_singularity() {
 start() {
     mkdir -p /etc/sudoers.d
     echo "scalerunner ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/scalerunner
-    
+
     # wait a bit until dhcp gets ip
     TIMEOUT=0
-    while [ "1" = "1" ] ; do
+    while [ true ] ; do
         END=`route -n | grep ^0.0.0.0 | tail -1 | wc -l`
         if [ "$END" = "1" ] ; then
            break
@@ -63,7 +63,7 @@ start() {
 
     if [ "$GCP" = "1" ] ; then
         echo "GCP detected"
-        
+
         hostname=`curl --silent 'http://169.254.169.254/computeMetadata/v1/instance/hostname' -H 'Metadata-Flavor: Google' --max-time 5 --retry 10 --retry-all-errors | cut -f 1 -d '.'`
         echo "Setting hostname to ${hostname}"
         hostname $hostname
@@ -72,7 +72,7 @@ start() {
             monitor_singularity &
         fi
     fi
-    
+
     return 0
 }
 
