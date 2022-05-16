@@ -25,8 +25,27 @@ monitor_keys() {
 
 monitor_singularity() {
     SCALE=$(curl --silent "http://169.254.169.254/computeMetadata/v1/instance/attributes/SCALE" -H "Metadata-Flavor: Google")
+    # check if SCALE is a number
+    isnumber_re='^[0-9]+$'
+    if ! [[ $SCALE =~ $isnumber_re ]] ; then
+        echo "Error: SCALE is not a number! Not starting singularity contaner, please check VM metadata!"
+        exit 1
+    fi
+    if ! mountpoint -q /mnt/persistent; then
+        echo "Error: persistent disk not mounted, but it is required! Not starting singularity container!"
+        exit 1
+    fi
+    SINGULARITY_CMD="singularity instance start -C -e --overlay /mnt/persistent/"
+    # if log disk is mounted, bind it into container
+    if mountpoint -q /mnt/log; then
+        # TODO: make sure same user exist in scalerunner,
+        # that exists in the container
+        # set chown of logs to the runner:runner user in the container
+        chown 1000:1001 /mnt/log
+        SINGULARITY_CMD="${SINGULARITY_CMD} --bind /mnt/log:/var/log/runner"
+    fi
     SINGULARITY_INSTANCE_NAME="runner"
-    SINGULARITY_CMD="singularity instance start -C -e --overlay /mnt/persistent/ /mnt/sif/image.sif ${SINGULARITY_INSTANCE_NAME} $SCALE"
+    SINGULARITY_CMD="${SINGULARITY_CMD} /mnt/sif/image.sif ${SINGULARITY_INSTANCE_NAME} $SCALE"
     while [ true ] ; do
        APP_RUNNING=`singularity instance list  | grep ${SINGULARITY_INSTANCE_NAME} | wc -l`
        if [ $APP_RUNNING = "0" ] ; then

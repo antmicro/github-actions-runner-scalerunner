@@ -10,6 +10,9 @@ coordinator_sif_disk_mnt=/mnt/sif
 coordinator_persistent_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnerpersistentdisk
 coordinator_persistent_disk_target_partition=${coordinator_persistent_disk}-part1
 coordinator_persistent_disk_mnt=/mnt/persistent
+coordinator_log_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnerlogs
+coordinator_log_disk_target_partition=${coordinator_log_disk}-part1
+coordinator_log_disk_mnt=/mnt/log
 
 worker_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_scalerunner-boot-disk
 # part1 is used as a boot partition
@@ -90,13 +93,29 @@ if [ -b ${coordinator_boot_disk} ]; then
     do_mount ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk_mnt}
     debug ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk}
 
-    prepare_mount ${coordinator_sif_disk} ${coordinator_sif_disk_target_partition}
-    do_mount ${coordinator_sif_disk_target_partition} ${coordinator_sif_disk_mnt}
-    debug ${coordinator_sif_disk_target_partition} ${coordinator_sif_disk}
+    if [ -b ${coordinator_sif_disk} ]; then
+	prepare_mount ${coordinator_sif_disk} ${coordinator_sif_disk_target_partition}
+	do_mount ${coordinator_sif_disk_target_partition} ${coordinator_sif_disk_mnt}
+	debug ${coordinator_sif_disk_target_partition} ${coordinator_sif_disk}
+    else
+	echo "Couldn't find sif disk, skipping mounting it"
+    fi
 
-    prepare_mount ${coordinator_persistent_disk} ${coordinator_persistent_disk_target_partition}
-    do_mount ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk_mnt}
-    debug ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk}
+    if [ -b ${coordinator_persistent_disk} ]; then
+	prepare_mount ${coordinator_persistent_disk} ${coordinator_persistent_disk_target_partition}
+	do_mount ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk_mnt}
+	debug ${coordinator_persistent_disk_target_partition} ${coordinator_persistent_disk}
+    else
+	echo "Couldn't find persistent disk, skipping mounting it"
+    fi
+
+    if [ -b ${coordinator_log_disk} ]; then
+	prepare_mount ${coordinator_log_disk} ${coordinator_log_disk_target_partition}
+	do_mount ${coordinator_log_disk_target_partition} ${coordinator_log_disk_mnt}
+	debug ${coordinator_log_disk_target_partition} ${coordinator_log_disk}
+    else
+	echo "Couldn't find log disk, skipping mounting it"
+    fi
 elif [ -b ${worker_boot_disk} ]; then
     echo "Detected worker machine!"
     prepare_mount ${worker_boot_disk} ${worker_boot_disk_target_partition}
