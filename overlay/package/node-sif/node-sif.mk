@@ -1,4 +1,4 @@
-NODE_SIF_VERSION = node-16-v0.1.3
+NODE_SIF_VERSION = node-16-v0.1.4
 NODE_SIF_SOURCE = $(NODE_SIF_VERSION).zip
 NODE_SIF_SITE = https://github.com/antmicro/github-actions-singularity-node/releases/download/$(NODE_SIF_VERSION)
 
