@@ -1,4 +1,5 @@
 config BR2_PACKAGE_NODE_SIF
 	bool "node-sif"
+	depends on BR2_x86_64 || BR2_aarch64
 	help
 	  Node 16 packaged as a SIF image.
