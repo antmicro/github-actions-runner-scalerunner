@@ -6,9 +6,15 @@ source common.sh
 
 export PATH="$PATH:/usr/sbin"
 
+get_image_arch() {
+    file -b $bzimage \
+        | sed -e "s#^Linux kernel ##" | cut -d' ' -f1 \
+        | tr [:upper:] [:lower:]
+}
+
 check_image() {
     if [ ! -f $bzimage ]; then
-        pecho "bzImage not found at $bzimage"
+        pecho "Kernel image not found at $bzimage"
         pecho "Build the image first."
         exit 1
     fi
@@ -94,6 +100,18 @@ make_tar() {
 
 check_image
 mkdir -p $out_dir
-make_grub
-prepare_bootdisk
-make_tar
+
+case "$(get_image_arch)" in
+    x86)
+        make_grub
+        prepare_bootdisk
+        make_tar
+        ;;
+    arm64)
+        pecho "ARM64 is not supported yet!"
+        ;;
+    *)
+        pecho "unknown or unsupported architecture"
+        ;;
+esac
+
