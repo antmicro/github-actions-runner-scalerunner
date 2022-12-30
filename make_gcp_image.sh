@@ -62,6 +62,36 @@ make_grub() {
     cd $base_dir
 }
 
+prepare_efistub_bootdisk() {
+    part_size=$(partition_size)
+    blocks=`expr $part_size / 512`
+
+    pecho "blocks: $blocks"
+
+    dd if=/dev/zero of=$raw_disk bs=512 count=$blocks
+
+    ls -alh $raw_disk
+
+    pecho "creating raw disk with bootable EFI partition"
+    ( echo "n" ; echo p ; echo 1 ; echo; echo; echo w; echo q ) | fdisk $raw_disk
+    ( echo t; echo ef; echo ; echo w; echo q ) | fdisk $raw_disk
+    ( echo a; echo w; echo q ) | fdisk $raw_disk
+
+    pecho "preparing fat32 partition"
+    truncate -s $part_size $fat_part
+    mkfs.fat -F 32 $fat_part
+
+    cp $bzimage $out_dir
+
+    pecho "copying EFISTUB kernel to fat32 partition"
+    mmd -i $fat_part ::EFI
+    mmd -i $fat_part ::EFI/BOOT
+    mcopy -i $fat_part $out_dir/Image '::EFI/BOOT/BOOTAA64.EFI'
+
+    pecho "copying fat32 to raw disk" 
+    dd conv=notrunc if=$fat_part of=$raw_disk bs=512 seek=2048 
+}
+
 prepare_bootdisk() {
     pecho "$(fdisk --version)"
 
@@ -108,7 +138,7 @@ case "$(get_image_arch)" in
         make_tar
         ;;
     arm64)
-        pecho "ARM64 is not supported yet!"
+        prepare_efistub_bootdisk
         ;;
     *)
         pecho "unknown or unsupported architecture"
