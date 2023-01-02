@@ -6,18 +6,13 @@ source common.sh
 
 export PATH="$PATH:/usr/sbin"
 
-get_image_arch() {
-    file -b $bzimage \
-        | sed -e "s#^Linux kernel ##" | cut -d' ' -f1 \
-        | tr [:upper:] [:lower:]
-}
-
 check_image() {
     if [ ! -f $bzimage ]; then
         pecho "Kernel image not found at $bzimage"
         pecho "Build the image first."
         exit 1
     fi
+    pecho "$bzimage is $image_arch"
 }
 
 partition_size() {
@@ -79,7 +74,7 @@ prepare_efistub_bootdisk() {
 
     pecho "preparing fat32 partition"
     truncate -s $part_size $fat_part
-    mkfs.fat -F 32 $fat_part
+    mkfs.fat -F 32 -n "GHA_$image_arch" $fat_part
 
     cp $bzimage $out_dir
 
@@ -102,7 +97,7 @@ prepare_bootdisk() {
 
     pecho "preparing fat16 partition"
     truncate -s $part_size $fat_part
-    mkfs.fat $fat_part
+    mkfs.fat -F 16 -n "GHA_$image_arch" $fat_part
 
     cp $bzimage $out_dir
 
@@ -123,25 +118,25 @@ prepare_bootdisk() {
 }
 
 make_tar() {
-    tar_arch=$(tar_path)
-    pecho "$(basename $tar_arch)"
-    tar -Sczf $tar_arch -C `dirname $raw_disk` disk.raw
+    pecho "$(basename $tar_path)"
+    tar -Sczf $tar_path -C `dirname $raw_disk` disk.raw
 }
 
 check_image
 mkdir -p $out_dir
 
-case "$(get_image_arch)" in
+case "$image_arch" in
     x86)
         make_grub
         prepare_bootdisk
-        make_tar
         ;;
     arm64)
         prepare_efistub_bootdisk
         ;;
     *)
         pecho "unknown or unsupported architecture"
+        exit 1
         ;;
 esac
 
+make_tar
