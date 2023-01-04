@@ -14,7 +14,13 @@ coordinator_log_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnerlogs
 coordinator_log_disk_target_partition=${coordinator_log_disk}-part1
 coordinator_log_disk_mnt=/mnt/log
 
-worker_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_scalerunner-boot-disk
+for disk_id in scsi-0Google_PersistentDisk_scalerunner-boot-disk google-scalerunner-boot-disk nvme-QEMU_NVMe_Ctrl_deadbeef; do
+    worker_boot_disk="/dev/disk/by-id/${disk_id}"
+    if [ -b "${worker_boot_disk}" ]; then
+        break
+    fi
+done
+
 # part1 is used as a boot partition
 worker_boot_disk_target_partition=${worker_boot_disk}-part2
 worker_boot_disk_mnt=/mnt
