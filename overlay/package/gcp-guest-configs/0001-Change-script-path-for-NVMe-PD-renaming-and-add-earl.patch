@@ -1,0 +1,42 @@
+From 52466fdbb1b2d33fa932ec00b065df439cdce060 Mon Sep 17 00:00:00 2001
+From: Adam Olech <aolech@antmicro.com>
+Date: Wed, 4 Jan 2023 15:47:48 +0100
+Subject: [PATCH] Change script path for NVMe PD renaming and add early exit
+ hook
+
+---
+ src/lib/udev/rules.d/65-gce-disk-naming.rules | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/lib/udev/rules.d/65-gce-disk-naming.rules b/src/lib/udev/rules.d/65-gce-disk-naming.rules
+index 9258b92..118a76f 100644
+--- a/src/lib/udev/rules.d/65-gce-disk-naming.rules
++++ b/src/lib/udev/rules.d/65-gce-disk-naming.rules
+@@ -14,21 +14,16 @@
+ #
+ # Name the attached disks as the specified by deviceName.
+ 
++# Early exit rules
+ ACTION!="add|change", GOTO="gce_disk_naming_end"
+ SUBSYSTEM!="block", GOTO="gce_disk_naming_end"
+-
+-# SCSI naming
+-KERNEL=="sd*|vd*", IMPORT{program}="scsi_id --export --whitelisted -d $tempnode"
+-
+-# NVME Local SSD naming
+-KERNEL=="nvme*n*", ATTRS{model}=="nvme_card", PROGRAM="/bin/sh -c 'nsid=$$(echo %k|sed -re s/nvme[0-9]+n\([0-9]+\).\*/\\1/); echo $$((nsid-1))'", ENV{ID_SERIAL_SHORT}="local-nvme-ssd-%c"
+-KERNEL=="nvme*", ATTRS{model}=="nvme_card", ENV{ID_SERIAL}="Google_EphemeralDisk_$env{ID_SERIAL_SHORT}"
++KERNEL=="nvme*n*", ATTRS{model}!="nvme_card-pd", GOTO="gce_disk_naming_end" 
+ 
+ # NVME Persistent Disk IO Timeout
+ KERNEL=="nvme*n*", ENV{DEVTYPE}=="disk", ATTRS{model}=="nvme_card-pd", ATTR{queue/io_timeout}="4294967295"
+ 
+ # NVME Persistent Disk Naming
+-KERNEL=="nvme*n*", ATTRS{model}=="nvme_card-pd", IMPORT{program}="google_nvme_id -d $tempnode"
++KERNEL=="nvme*n*", ATTRS{model}=="nvme_card-pd", IMPORT{program}="/usr/local/bin/gcp_nvme_id.sh $tempnode"
+ 
+ # Symlinks
+ KERNEL=="sd*|vd*|nvme*", ENV{DEVTYPE}=="disk", SYMLINK+="disk/by-id/google-$env{ID_SERIAL_SHORT}"
+-- 
+2.30.2
+

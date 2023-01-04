@@ -1,0 +1,3 @@
+config BR2_PACKAGE_GCP_GUEST_CONFIGS
+	bool "gcp-guest-configs"
+	depends on BR2_x86_64 || BR2_aarch64
