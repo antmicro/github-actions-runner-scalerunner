@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# This is a wrapper script which silences modprobe and masks failures.
+# The purpose is to ensure that the following invocation does not cause the script to fail:
+# https://github.com/antmicro/runner/blob/e8a539d970b354e49e2728a98bf7ea3c3ec90297/virt/vm_command.py#L671
+# It is no longer necessary as fuse is now compiled as a built-in. 
+/sbin/modprobe -q "$@" || true
