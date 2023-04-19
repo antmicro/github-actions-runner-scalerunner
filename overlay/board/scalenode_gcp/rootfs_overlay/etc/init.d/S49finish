@@ -1,5 +1,7 @@
 #!/bin/sh
 
+coordinator_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0
+
 monitor_keys() {
     echo "Monitoring ssh keys for $1"
     wait=0
@@ -55,6 +57,51 @@ monitor_singularity() {
     done
 }
 
+monitor_boot_disk() {
+    TMP_TAR_NAME=new_boot_image.tar.gz
+    AUTH=$(curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -H "Metadata-Flavor: Google" | python3 -c "import json, sys; res=json.load(sys.stdin); print(res['token_type'], res['access_token'])")
+
+    while [ true ]; do
+        TMP=`mktemp`
+        TMP_DIR=`mktemp -d`
+        # wait for new boot image
+        curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/attributes/BOOT_IMAGE_UPDATE?wait_for_change=true" -H 'Metadata-Flavor: Google' > $TMP
+        
+        # download from bucket
+        BOOT_IMAGE_FILE="$(cat $TMP | rev | cut -d/ -f1 | rev).tar.gz"
+        BUCKET_NAME=$(curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/attributes/BOOT_IMAGE_BUCKET" -H 'Metadata-Flavor: Google')
+        if ! curl --silent --fail -o $TMP_DIR/$TMP_TAR_NAME "https://storage.googleapis.com/storage/v1/b/${BUCKET_NAME}/o/${BOOT_IMAGE_FILE}?alt=media" -H "Authorization: $AUTH"; then
+            rm -r $TMP $TMP_DIR
+            continue
+        fi
+        rm $TMP
+    
+        # extract tar
+        (
+            cd $TMP_DIR
+            tar -xf $TMP_TAR_NAME
+            rm $TMP_TAR_NAME
+        )        
+        NEW_DISK=$TMP_DIR/$(ls $TMP_DIR)
+
+        # copy new image to boot disk
+        BOOT_DISK_SIZE=$(blockdev --getsz $coordinator_boot_disk)
+        BOOT_IMAGE_SIZE=$(blockdev --getsz $NEW_DISK)
+        if [ $BOOT_IMAGE_SIZE -le $BOOT_DISK_SIZE ]; then
+            dd if=/dev/zero of=$coordinator_boot_disk bs=512 count=$BOOT_DISK_SIZE
+            dd if=$NEW_DISK of=$coordinator_boot_disk bs=512
+            fdisk -l $coordinator_boot_disk
+        else
+            echo "Error: New boot image is bigger then available space, aborting"
+            rm -r $TMP_DIR
+            continue
+        fi
+    
+        rm -r $TMP_DIR
+        echo "Boot disk updated with $BOOT_IMAGE_FILE image from $BUCKET_NAME bucket"
+        sleep 1
+    done
+}
 
 start() {
     mkdir -p /etc/sudoers.d
@@ -79,7 +126,7 @@ start() {
 
     echo "Detecting if we're running in GCP..."
 
-    /usr/local/bin/prepare_disk.sh
+    coordinator_boot_disk=$coordinator_boot_disk /usr/local/bin/prepare_disk.sh
 
     if [ "$GCP" = "1" ] ; then
         echo "GCP detected"
@@ -91,6 +138,9 @@ start() {
         monitor_keys "instance" &
         if [ -f /mnt/sif/image.sif ]; then
             monitor_singularity &
+        fi
+        if [ -b $coordinator_boot_disk ]; then
+            monitor_boot_disk &
         fi
     fi
 

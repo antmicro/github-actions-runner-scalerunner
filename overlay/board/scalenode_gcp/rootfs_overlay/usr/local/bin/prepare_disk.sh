@@ -1,9 +1,7 @@
 #!/bin/sh
 
-coordinator_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0
 # part1 is used as a boot partition
-coordinator_boot_disk_target_partition=${coordinator_boot_disk}-part2
-coordinator_boot_disk_mnt=/mnt/boot-persistent
+coordinator_boot_disk=${coordinator_boot_disk:-/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0}
 coordinator_sif_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk
 coordinator_sif_disk_target_partition=${coordinator_sif_disk}-part1
 coordinator_sif_disk_mnt=/mnt/sif
@@ -95,9 +93,7 @@ check_root
 if [ -b ${coordinator_boot_disk} ]; then
     echo "Detected coordinator machine!"
     # we are in coordinator machine
-    prepare_mount ${coordinator_boot_disk} ${coordinator_boot_disk_target_partition}
-    do_mount ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk_mnt}
-    debug ${coordinator_boot_disk_target_partition} ${coordinator_boot_disk}
+    fdisk -l ${coordinator_boot_disk}
 
     if [ -b ${coordinator_sif_disk} ]; then
 	prepare_mount ${coordinator_sif_disk} ${coordinator_sif_disk_target_partition}
