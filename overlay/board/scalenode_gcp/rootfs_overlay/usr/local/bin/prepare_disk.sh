@@ -2,9 +2,9 @@
 
 # part1 is used as a boot partition
 coordinator_boot_disk=${coordinator_boot_disk:-/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0}
-coordinator_sif_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk
-coordinator_sif_disk_target_partition=${coordinator_sif_disk}-part1
-coordinator_sif_disk_mnt=/mnt/sif
+coordinator_sif_disk=${coordinator_sif_disk:-/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk}
+coordinator_sif_disk_target_partition=${coordinator_sif_disk_target_partition:-${coordinator_sif_disk}-part1}
+coordinator_sif_disk_mnt=${coordinator_sif_disk_mnt:-/mnt/sif}
 coordinator_persistent_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnerpersistentdisk
 coordinator_persistent_disk_target_partition=${coordinator_persistent_disk}-part1
 coordinator_persistent_disk_mnt=/mnt/persistent

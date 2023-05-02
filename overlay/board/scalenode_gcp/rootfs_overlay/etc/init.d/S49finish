@@ -1,6 +1,9 @@
 #!/bin/sh
 
 coordinator_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0
+coordinator_sif_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk
+coordinator_sif_disk_target_partition=${coordinator_sif_disk}-part1
+coordinator_sif_disk_mnt=/mnt/sif
 
 monitor_keys() {
     echo "Monitoring ssh keys for $1"
@@ -25,6 +28,7 @@ monitor_keys() {
     done
 }
 
+SINGULARITY_INSTANCE_NAME="runner"
 monitor_singularity() {
     SCALE=$(curl --silent "http://169.254.169.254/computeMetadata/v1/instance/attributes/SCALE" -H "Metadata-Flavor: Google")
     # check if SCALE is a number
@@ -46,30 +50,74 @@ monitor_singularity() {
         chown 1000:1001 /mnt/log
         SINGULARITY_CMD="${SINGULARITY_CMD} --bind /mnt/log:/var/log/runner"
     fi
-    SINGULARITY_INSTANCE_NAME="runner"
-    SINGULARITY_CMD="${SINGULARITY_CMD} /mnt/sif/image.sif ${SINGULARITY_INSTANCE_NAME} $SCALE"
+    SINGULARITY_CMD="${SINGULARITY_CMD} ${coordinator_sif_disk_mnt}/image.sif ${SINGULARITY_INSTANCE_NAME} $SCALE"
     while [ true ] ; do
        APP_RUNNING=`singularity instance list  | grep ${SINGULARITY_INSTANCE_NAME} | wc -l`
-       if [ $APP_RUNNING = "0" ] ; then
+       if [ $APP_RUNNING = "0" ] && [ -f ${coordinator_sif_disk_mnt}/image.sif ] ; then
 	   ${SINGULARITY_CMD}
        fi
        sleep 10
     done
 }
 
+send_SIGINT() {
+    PIDs=$(ps aux | awk '$(NF-1) ~ /bin\/Runner.Listener$/ && $NF == "run" {print $2}')
+    if [ $(echo $PIDS | wc -w) -gt 0 ]; then
+        kill -s SIGINT $PIDs
+    fi
+}
+
+wait_for_listeners() {
+    while [ $(ps aux | awk '$(NF-1) ~ /bin\/Runner.Listener$/ && $NF == "run" {print $2}' | wc -l) -ne 0 ]; do
+        sleep 10
+    done
+}
+
+monitor_sif_disk() {
+    while [ true ]; do
+        if ! grep -qs $(readlink -f $coordinator_sif_disk_target_partition) /proc/mounts ; then
+            send_SIGINT
+
+            while [ ! -b $coordinator_sif_disk_target_partition ]; do
+                sleep 5
+            done
+            mount $coordinator_sif_disk_target_partition $coordinator_sif_disk_mnt
+
+            echo "Wating for end of actions..."
+            wait_for_listeners
+            echo "Stopping singularity instances"
+            singularity instance stop "${SINGULARITY_INSTANCE_NAME}*"
+        fi
+        sleep 10
+    done
+}
+
+INTERNAL_METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+curl_metadata() {
+    curl --silent "$INTERNAL_METADATA_URL/$1" -H "Metadata-Flavor: Google"
+}
+
+reset_instance() {
+    PROJECT=$(curl_metadata "project/project-id")
+    ZONE=$(curl_metadata "instance/zone" | cut -d/ -f4)
+    INSTANCE_NAME=$(hostname)
+    UUID=$(uuidgen -t)
+    curl --request POST --header "Authorization: $AUTH" --data "{\"requestId\": \"$UUID\"}" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME/reset"
+}
+
 monitor_boot_disk() {
     TMP_TAR_NAME=new_boot_image.tar.gz
-    AUTH=$(curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" -H "Metadata-Flavor: Google" | python3 -c "import json, sys; res=json.load(sys.stdin); print(res['token_type'], res['access_token'])")
+    AUTH=$(curl_metadata "instance/service-accounts/default/token" | python3 -c "import json, sys; res=json.load(sys.stdin); print(res['token_type'], res['access_token'])")
 
     while [ true ]; do
         TMP=`mktemp`
         TMP_DIR=`mktemp -d`
         # wait for new boot image
-        curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/attributes/BOOT_IMAGE_UPDATE?wait_for_change=true" -H 'Metadata-Flavor: Google' > $TMP
-        
+        curl_metadata "instance/attributes/BOOT_IMAGE_UPDATE?wait_for_change=true" > $TMP
+       
         # download from bucket
         BOOT_IMAGE_FILE="$(cat $TMP | rev | cut -d/ -f1 | rev).tar.gz"
-        BUCKET_NAME=$(curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/attributes/BOOT_IMAGE_BUCKET" -H 'Metadata-Flavor: Google')
+        BUCKET_NAME=$(curl_metadata "instance/attributes/BOOT_IMAGE_BUCKET")
         if ! curl --silent --fail -o $TMP_DIR/$TMP_TAR_NAME "https://storage.googleapis.com/storage/v1/b/${BUCKET_NAME}/o/${BOOT_IMAGE_FILE}?alt=media" -H "Authorization: $AUTH"; then
             rm -r $TMP $TMP_DIR
             continue
@@ -88,7 +136,11 @@ monitor_boot_disk() {
         BOOT_DISK_SIZE=$(blockdev --getsz $coordinator_boot_disk)
         BOOT_IMAGE_SIZE=$(blockdev --getsz $NEW_DISK)
         if [ $BOOT_IMAGE_SIZE -le $BOOT_DISK_SIZE ]; then
-            dd if=/dev/zero of=$coordinator_boot_disk bs=512 count=$BOOT_DISK_SIZE
+            # kill monitor_singularity & to prevent restarting listeners before restart
+            kill -9 $1 $2
+            send_SIGINT
+
+            # copy new image to boot disk
             dd if=$NEW_DISK of=$coordinator_boot_disk bs=512
             fdisk -l $coordinator_boot_disk
         else
@@ -99,7 +151,11 @@ monitor_boot_disk() {
     
         rm -r $TMP_DIR
         echo "Boot disk updated with $BOOT_IMAGE_FILE image from $BUCKET_NAME bucket"
-        sleep 1
+
+        echo "Wating for end of actions..."
+        wait_for_listeners
+        echo "Restarting"
+        AUTH=$AUTH reset_instance
     done
 }
 
@@ -126,7 +182,10 @@ start() {
 
     echo "Detecting if we're running in GCP..."
 
-    coordinator_boot_disk=$coordinator_boot_disk /usr/local/bin/prepare_disk.sh
+    coordinator_boot_disk=$coordinator_boot_disk \
+    coordinator_sif_disk=$coordinator_sif_disk \
+    coordinator_sif_disk_target_partition=$coordinator_sif_disk_target_partition \
+    coordinator_sif_disk_mnt=$coordinator_sif_disk_mnt /usr/local/bin/prepare_disk.sh
 
     if [ "$GCP" = "1" ] ; then
         echo "GCP detected"
@@ -136,11 +195,16 @@ start() {
         sed -i "s#$(hostname)#${new_hostname}#g" /etc/hosts
         hostname "$new_hostname"
         monitor_keys "instance" &
-        if [ -f /mnt/sif/image.sif ]; then
+        if [ -f ${coordinator_sif_disk_mnt}/image.sif ]; then
             monitor_singularity &
+            MONITOR_SINGULARITY_PID=$!
+        fi
+        if [ -b $coordinator_sif_disk_target_partition ]; then
+            monitor_sif_disk &
+            MONITOR_SIF_DISK_PID=$!
         fi
         if [ -b $coordinator_boot_disk ]; then
-            monitor_boot_disk &
+            monitor_boot_disk $MONITOR_SINGULARITY_PID $MONITOR_SIF_DISK_PID &
         fi
     fi
 
