@@ -69,6 +69,7 @@ send_SIGINT() {
 
 wait_for_listeners() {
     while [ $(ps aux | awk '$(NF-1) ~ /bin\/Runner.Listener$/ && $NF == "run" {print $2}' | wc -l) -ne 0 ]; do
+        echo "Waiting for end of actions..."
         sleep 10
     done
 }
@@ -83,7 +84,6 @@ monitor_sif_disk() {
             done
             mount $coordinator_sif_disk_target_partition $coordinator_sif_disk_mnt
 
-            echo "Wating for end of actions..."
             wait_for_listeners
             echo "Stopping singularity instances"
             singularity instance stop "${SINGULARITY_INSTANCE_NAME}*"
@@ -98,16 +98,34 @@ curl_metadata() {
 }
 
 reset_instance() {
-    PROJECT=$(curl_metadata "project/project-id")
-    ZONE=$(curl_metadata "instance/zone" | cut -d/ -f4)
-    INSTANCE_NAME=$(hostname)
     UUID=$(uuidgen -t)
-    curl --request POST --header "Authorization: $AUTH" --data "{\"requestId\": \"$UUID\"}" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME/reset"
+    echo "Sending reset with uuid: $UUID"
+    curl --request POST --header "Authorization: $AUTH" --data "" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME/reset?requestId=$UUID"
+}
+
+reset_BOOT_IMAGE_UPDATE() {
+    # Get all metadata with fingerprint and change BOOT_IMAGE_UPDATE
+    METADATA=$(curl --silent --header "Authorization: $AUTH" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME" | python3 -c "import json, sys; m=json.load(sys.stdin)['metadata']; next(filter(lambda x: x['key']=='BOOT_IMAGE_UPDATE', m['items']))['value']='$OLD_BOOT_IMAGE'; del m['kind']; print(json.dumps(m))")
+    UUID=$(uuidgen -t)
+    # POST metadata update
+    curl --silent --request POST --header "Authorization: $AUTH" -H "Content-Type: application/json" --data "$METADATA" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME/setMetadata?requestId=$UUID"
+    sleep 2
 }
 
 monitor_boot_disk() {
     TMP_TAR_NAME=new_boot_image.tar.gz
+
+    PROJECT=$(curl_metadata "project/project-id")
+    ZONE=$(curl_metadata "instance/zone" | cut -d/ -f4)
+    INSTANCE_NAME=$(hostname)
     AUTH=$(curl_metadata "instance/service-accounts/default/token" | python3 -c "import json, sys; res=json.load(sys.stdin); print(res['token_type'], res['access_token'])")
+    OLD_BOOT_IMAGE=$(curl_metadata "instance/attributes/BOOT_IMAGE_UPDATE")
+
+    if [ -b $coordinator_sif_disk ]; then
+        SIF_DISK_EXISTS=true
+    else
+        SIF_DISK_EXISTS=false
+    fi
 
     while [ true ]; do
         TMP=`mktemp`
@@ -120,6 +138,7 @@ monitor_boot_disk() {
         BUCKET_NAME=$(curl_metadata "instance/attributes/BOOT_IMAGE_BUCKET")
         if ! curl --silent --fail -o $TMP_DIR/$TMP_TAR_NAME "https://storage.googleapis.com/storage/v1/b/${BUCKET_NAME}/o/${BOOT_IMAGE_FILE}?alt=media" -H "Authorization: $AUTH"; then
             rm -r $TMP $TMP_DIR
+            reset_BOOT_IMAGE_UPDATE
             continue
         fi
         rm $TMP
@@ -146,16 +165,20 @@ monitor_boot_disk() {
         else
             echo "Error: New boot image is bigger then available space, aborting"
             rm -r $TMP_DIR
+            reset_BOOT_IMAGE_UPDATE
             continue
         fi
     
         rm -r $TMP_DIR
         echo "Boot disk updated with $BOOT_IMAGE_FILE image from $BUCKET_NAME bucket"
 
-        echo "Wating for end of actions..."
         wait_for_listeners
-        echo "Restarting"
-        AUTH=$AUTH reset_instance
+        while [ "$SIF_DISK_EXISTS" == "true" ] && [ ! -b $coordinator_sif_disk ]; do
+            echo "Wating for new SIF image..."
+            sleep 5
+        done
+        echo "Restarting..."
+        reset_instance
     done
 }
 
@@ -195,13 +218,14 @@ start() {
         sed -i "s#$(hostname)#${new_hostname}#g" /etc/hosts
         hostname "$new_hostname"
         monitor_keys "instance" &
-        if [ -f ${coordinator_sif_disk_mnt}/image.sif ]; then
-            monitor_singularity &
-            MONITOR_SINGULARITY_PID=$!
-        fi
         if [ -b $coordinator_sif_disk_target_partition ]; then
             monitor_sif_disk &
             MONITOR_SIF_DISK_PID=$!
+        fi
+        sleep 2
+        if [ -f ${coordinator_sif_disk_mnt}/image.sif ]; then
+            monitor_singularity &
+            MONITOR_SINGULARITY_PID=$!
         fi
         if [ -b $coordinator_boot_disk ]; then
             monitor_boot_disk $MONITOR_SINGULARITY_PID $MONITOR_SIF_DISK_PID &
