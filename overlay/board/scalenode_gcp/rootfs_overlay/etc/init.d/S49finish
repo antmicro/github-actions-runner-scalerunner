@@ -1,9 +1,11 @@
 #!/bin/sh
 
-coordinator_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0
-coordinator_sif_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk
-coordinator_sif_disk_target_partition=${coordinator_sif_disk}-part1
-coordinator_sif_disk_mnt=/mnt/sif
+export coordinator_boot_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_persistent-disk-0
+export coordinator_sif_disk=/dev/disk/by-id/scsi-0Google_PersistentDisk_gharunnersifimagedisk
+export coordinator_sif_disk_target_partition=${coordinator_sif_disk}-part1
+export coordinator_sif_disk_mnt=/mnt/sif
+export coordinator_persistent_disk_mnt=/mnt/persistent
+coordinator_ssh_persistent_conf_dir=$coordinator_persistent_disk_mnt/.ssh_persistent
 
 monitor_keys() {
     echo "Monitoring ssh keys for $1"
@@ -205,11 +207,19 @@ start() {
 
     echo "Detecting if we're running in GCP..."
 
-    coordinator_boot_disk=$coordinator_boot_disk \
-    coordinator_sif_disk=$coordinator_sif_disk \
-    coordinator_sif_disk_target_partition=$coordinator_sif_disk_target_partition \
-    coordinator_sif_disk_mnt=$coordinator_sif_disk_mnt /usr/local/bin/prepare_disk.sh
+    /usr/local/bin/prepare_disk.sh
 
+    # Use persistent config for SSH 
+    if mountpoint -q $coordinator_persistent_disk_mnt; then
+        if [ ! -d $coordinator_ssh_persistent_conf_dir ]; then
+            mv /etc/ssh $coordinator_ssh_persistent_conf_dir
+        else
+            rm -rf /etc/ssh
+        fi
+        ln -sf $coordinator_ssh_persistent_conf_dir /etc/ssh
+        echo "Used SSH config from $coordinator_ssh_persistent_conf_dir"
+    fi
+   
     if [ "$GCP" = "1" ] ; then
         echo "GCP detected"
 
