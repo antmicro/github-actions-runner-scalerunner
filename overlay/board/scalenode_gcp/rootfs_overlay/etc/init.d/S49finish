@@ -105,7 +105,7 @@ reset_instance() {
 
 reset_BOOT_IMAGE_UPDATE() {
     # Get all metadata with fingerprint and change BOOT_IMAGE_UPDATE
-    METADATA=$(curl --silent --header "Authorization: $AUTH" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME" | python3 -c "import json, sys; m=json.load(sys.stdin)['metadata']; next(filter(lambda x: x['key']=='BOOT_IMAGE_UPDATE', m['items']))['value']='$OLD_BOOT_IMAGE'; del m['kind']; print(json.dumps(m))")
+    METADATA=$(curl --silent --header "Authorization: $AUTH" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME" | jq -cM --arg old "$OLD_BOOT_IMAGE" '.metadata | del(.kind) | (.items[] | select(.key == "BOOT_IMAGE_UPDATE")).value |= $old')
     UUID=$(uuidgen -t)
     # POST metadata update
     curl --silent --request POST --header "Authorization: $AUTH" -H "Content-Type: application/json" --data "$METADATA" "https://compute.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/instances/$INSTANCE_NAME/setMetadata?requestId=$UUID"
@@ -118,7 +118,7 @@ monitor_boot_disk() {
     PROJECT=$(curl_metadata "project/project-id")
     ZONE=$(curl_metadata "instance/zone" | cut -d/ -f4)
     INSTANCE_NAME=$(hostname)
-    AUTH=$(curl_metadata "instance/service-accounts/default/token" | python3 -c "import json, sys; res=json.load(sys.stdin); print(res['token_type'], res['access_token'])")
+    AUTH=$(curl_metadata "instance/service-accounts/default/token" | jq -r '.token_type, .access_token')
     OLD_BOOT_IMAGE=$(curl_metadata "instance/attributes/BOOT_IMAGE_UPDATE")
 
     if [ -b $coordinator_sif_disk ]; then
