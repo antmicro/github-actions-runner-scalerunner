@@ -3,7 +3,7 @@ on: push
 
 jobs:
   build_image:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, cross-test]
     container: debian:bullseye
     steps:
       - name: Checkout repository
@@ -13,28 +13,22 @@ jobs:
 
       - name: Install utils
         run: |
-          apt-get -qqy update
-          apt-get -qqy install file gcc-multilib mtools \
-            automake autoconf build-essential bison flex \
-            wget patch bc unzip make rsync binutils cpio git libelf-dev \
-            python3 golang fdisk dosfstools texinfo 
+          echo "test"
+          sleep 5s
 
       - name: Make Buildroot image
         run: |
-          unset PATH
-          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          cd buildroot
-          make BR2_EXTERNAL=../overlay/ scalenode_gcp_defconfig
-          ( FORCE_UNSAFE_CONFIGURE=1 make -j$(nproc) 2>&1 | tail -10000 ) || FORCE_UNSAFE_CONFIGURE=1 make
+          echo "end"
 
-      - name: Make GCP image
+  second-job:
+    runs-on: [self-hosted, Linux, X64, cross-test]
+    container: debian:bullseye
+    steps:
+      - name: Test
         run: |
-          ./make_gcp_image.sh
+          echo "test"
+          sleep 5s
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: worker-image
-          path: |
-            output/*.tar.gz
-            **/plot_*.svg
+      - name: End
+        run: |
+          echo "end"
